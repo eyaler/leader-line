@@ -1,4 +1,17 @@
-# LeaderLine
+# LeaderLine Undocked!
+
+### Changes by Eyal Gruss
+
+This fork addresses the popular request to allow adding LeaderLine SVG elements to a specific container other than the base document. This simplifies dealing with scrollable elements, overflow clipping, and an element going fullscreen (Element.requestFullscreen).
+While this works for my simple use case, the added functionality is poorly tested and might break more advanced usages.  
+
+1. LeaderLine SVG elements will be added and positioned relatively to the closest common ancestor of the attached elements that has a `.leader-line-container` class, if it exists. Otherwise, we default to the base document as the regular behavior.
+2. Fullscreen change event will trigger position update.
+3. A `bilinear` path. Use `startSocketGravity = number` (may be negative) for a perpendicular offset, or `startSocketGravity = [x, y]` for per axis offsets. 
+
+Used in https://eyalgruss.com/constrained/petri/
+
+---
 
 [![npm](https://img.shields.io/npm/v/leader-line.svg)](https://www.npmjs.com/package/leader-line) [![GitHub issues](https://img.shields.io/github/issues/anseki/leader-line.svg)](https://github.com/anseki/leader-line/issues) [![dependencies](https://img.shields.io/badge/dependencies-No%20dependency-brightgreen.svg)](package.json) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -298,6 +311,8 @@ scrollableBox.addEventListener('scroll', AnimEvent.add(function() {
 
 (The code above uses [AnimEvent](https://github.com/anseki/anim-event) for a better performance.)
 
+Alternatively, setting the `.leader-line-container` class on a container of attached elements will position LeaderLine elements relative to the container and move with its elements (added by Eyal Gruss)
+
 If you want to disable the fixing the position automatically, set `LeaderLine.positionByWindowResize` to `false`.
 
 ### `remove`
@@ -362,6 +377,7 @@ One of the following keywords to indicate how to draw the line:
 - `fluid`
 - `magnet`
 - `grid`
+- `bilinear` (added by Eyal Gruss)
 
 [![ex-180](img/ex-180.png)](https://anseki.github.io/leader-line/)
 

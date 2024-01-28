@@ -1,3 +1,7 @@
+.leader-line-container {
+  position: relative;
+}
+
 .leader-line {
   position: absolute;
   overflow: visible !important;

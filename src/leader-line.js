@@ -44,9 +44,9 @@
     SOCKET_TOP = 1, SOCKET_RIGHT = 2, SOCKET_BOTTOM = 3, SOCKET_LEFT = 4,
     SOCKET_KEY_2_ID = {top: SOCKET_TOP, right: SOCKET_RIGHT, bottom: SOCKET_BOTTOM, left: SOCKET_LEFT},
 
-    PATH_STRAIGHT = 1, PATH_ARC = 2, PATH_FLUID = 3, PATH_MAGNET = 4, PATH_GRID = 5,
+    PATH_STRAIGHT = 1, PATH_ARC = 2, PATH_FLUID = 3, PATH_MAGNET = 4, PATH_GRID = 5, PATH_BILINEAR = 6
     PATH_KEY_2_ID = {
-      straight: PATH_STRAIGHT, arc: PATH_ARC, fluid: PATH_FLUID, magnet: PATH_MAGNET, grid: PATH_GRID},
+      straight: PATH_STRAIGHT, arc: PATH_ARC, fluid: PATH_FLUID, magnet: PATH_MAGNET, grid: PATH_GRID, bilinear: PATH_BILINEAR},
 
     /**
      * @typedef {Object} SymbolConf
@@ -357,7 +357,7 @@
    * @returns {(BBox|null)} A bounding-box or null when failed.
    */
   function getBBox(element, relWindow) {
-    var bBox = {}, rect, prop, doc, win;
+    var bBox = {}, rect, prop, doc, win, x, y;
     if (!(doc = element.ownerDocument)) {
       console.error('Cannot get document that contains the element.');
       return null;
@@ -375,10 +375,16 @@
         console.error('Cannot get window that contains the element.');
         return null;
       }
-      bBox.left += win.pageXOffset;
-      bBox.right += win.pageXOffset;
-      bBox.top += win.pageYOffset;
-      bBox.bottom += win.pageYOffset;
+      x = win.pageXOffset;
+      y = win.pageYOffset;
+      if (rect = e.closest(".leader-line-container")?.getBoundingClientRect()) {
+        x = -r.x;
+        y = -r.y;
+      }
+      bBox.left += x;
+      bBox.right += x;
+      bBox.top += y;
+      bBox.bottom += y;
     }
 
     return bBox;
@@ -917,7 +923,7 @@
    * @param {Window} newWindow - A common ancestor `window`.
    * @returns {void}
    */
-  function bindWindow(props, newWindow) {
+  function bindWindow(props, newWindow, commonContainer) {
     traceLog.add('<bindWindow>'); // [DEBUG/]
     var aplStats = props.aplStats, baseDocument = newWindow.document,
       svg, defs, maskCaps, element, prefix = APP_ID + '-' + props._id,
@@ -963,7 +969,7 @@
     });
 
     if (props.baseWindow && props.svg) {
-      props.baseWindow.document.body.removeChild(props.svg);
+      props.svg.remove();
     }
     props.baseWindow = newWindow;
     setupWindow(newWindow);
@@ -1110,7 +1116,7 @@
       svg.style.visibility = 'hidden';
     }
 
-    baseDocument.body.appendChild(svg);
+    (commonContainer || baseDocument.body).appendChild(svg);
 
     // label (after appendChild(svg), bBox is used)
     [0, 1, 2].forEach(function(i) {
@@ -1636,6 +1642,22 @@
 
         case PATH_STRAIGHT:
           pathList.push([socketXY2Point(curSocketXYSE[0]), socketXY2Point(curSocketXYSE[1])]);
+          break;
+
+        case PATH_BILINEAR:
+          var
+            offset = {x: 0, y: 0},
+            angle = Math.atan2((curSocketXYSE[1].y - curSocketXYSE[0].y) * (Math.sign(curSocketXYSE[1].x - curSocketXYSE[0].x) || 1), Math.abs(curSocketXYSE[1].x - curSocketXYSE[0].x)),
+            midpoint;
+          if (Array.isArray(curSocketGravitySE[0]))
+            offset = {x: curSocketGravitySE[0][0], y: curSocketGravitySE[0][1]};
+          else if (typeof curSocketGravitySE[0] === 'number')
+            offset = {x: curSocketGravitySE[0] * -Math.sin(angle), y: curSocketGravitySE[0] * Math.cos(angle)};
+          midpoint = {
+            x: (curSocketXYSE[0].x+curSocketXYSE[1].x)/2 + offset.x,
+            y: (curSocketXYSE[0].y+curSocketXYSE[1].y)/2 + offset.y
+          }
+          pathList.push([socketXY2Point(curSocketXYSE[0]), midpoint], [midpoint, socketXY2Point(curSocketXYSE[1])]);
           break;
 
         case PATH_ARC:
@@ -2503,7 +2525,7 @@
       labelSEM                startLabel, endLabel, middleLabel
     */
     var options = props.options,
-      newWindow, needsWindow, needs = {};
+      newWindow, needsWindow, needs = {}, startElement, endElement;
 
     function getCurOption(root, propName, optionName, index, defaultValue) {
       var curOption = {};
@@ -2594,12 +2616,13 @@
     // Check window.
     if (needsWindow &&
         (newWindow = getCommonWindow(
-          props.optionIsAttach.anchorSE[0] !== false ?
+          startElement = props.optionIsAttach.anchorSE[0] !== false ?
             insAttachProps[options.anchorSE[0]._id].element : options.anchorSE[0],
-          props.optionIsAttach.anchorSE[1] !== false ?
+          endElement = props.optionIsAttach.anchorSE[1] !== false ?
             insAttachProps[options.anchorSE[1]._id].element : options.anchorSE[1]
         )) !== props.baseWindow) {
-      bindWindow(props, newWindow);
+      while((startElement = startElement.parentNode?.closest('.leader-line-container'))?.contains(endElement) === false);
+      bindWindow(props, newWindow, startElement);
       needs.line = needs.plug = needs.lineOutline = needs.plugOutline = needs.faces = needs.effect = true;
     }
 
@@ -2629,7 +2652,7 @@
         } else {
           if ((newOption + '').toLowerCase() === KEYWORD_AUTO) {
             value = null;
-          } else if (isFinite(newOption) && newOption >= 0) {
+          } else if (isFinite(newOption) && (newOption >= 0 || options.path == PATH_BILINEAR)) {
             value = newOption;
           }
           if (value === options.socketGravitySE[i]) { value = false; }
@@ -3517,7 +3540,7 @@
     props.attachments.slice().forEach(function(attachProps) { unbindAttachment(props, attachProps); });
 
     if (props.baseWindow && props.svg) {
-      props.baseWindow.document.body.removeChild(props.svg);
+      props.svg.remove();
     }
     delete insProps[this._id];
   };
@@ -3773,7 +3796,7 @@
         attachProps.path.style.fill = attachProps.fill || 'none';
         attachProps.isShown = false;
         svg.style.visibility = 'hidden';
-        baseDocument.body.appendChild(svg);
+        (attachProps.element.closest('.leader-line-container') || baseDocument.body).appendChild(svg);
         setupWindow((window = baseDocument.defaultView));
         attachProps.bodyOffset = getBodyOffset(window); // Get `bodyOffset`
 
@@ -3850,7 +3873,7 @@
           attachProps.boundTargets.forEach(
             function(boundTarget) { ATTACHMENTS.areaAnchor.unbind(attachProps, boundTarget); });
         }
-        attachProps.svg.parentNode.removeChild(attachProps.svg);
+        attachProps.svg.remove();
         traceLog.add('</ATTACHMENTS.areaAnchor.remove>'); // [DEBUG/]
       },
 
@@ -5190,6 +5213,13 @@
     }
     traceLog.add('</positionByWindowResize>'); // [DEBUG/]
   }), false);
+
+  // Trigger position update due to full screen change
+  document.addEventListener('fullscreenchange', function() {
+    traceLog.add('<triggerResizeByFullscreen>'); // [DEBUG/]
+    window.dispatchEvent(new window.Event('resize'));
+    traceLog.add('</triggerResizeByFullscreen>'); // [DEBUG/]
+  }, false);
 
   return LeaderLine;
 })();
