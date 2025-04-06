@@ -8,6 +8,7 @@ While this works for my simple use case, the added functionality is poorly teste
 1. LeaderLine SVG elements will be added and positioned relatively to the closest common ancestor of the attached elements that has a `.leader-line-container` class, if it exists. Otherwise, we default to the base document as the regular behavior.
 2. Fullscreen change event will trigger position update.
 3. A `bilinear` path. Use `startSocketGravity = number` (may be negative) for a perpendicular offset, or `startSocketGravity = [x, y]` for per axis offsets. 
+4. Always use path-data-polyfill (see: https://github.com/jarek-foksa/path-data-polyfill/commit/fd75208405ce9121fbde3a09b0b29b93129e9a6e)
 
 Used in https://eyalgruss.com/constrained/petri/
 

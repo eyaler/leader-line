@@ -23,7 +23,8 @@ function pathDataPolyfill(window) {
 //   Jarosław Foksa
 // @license
 //   MIT License
-if (!window.SVGPathElement.prototype.getPathData || !window.SVGPathElement.prototype.setPathData) {
+/*if (!window.SVGPathElement.prototype.getPathData || !window.SVGPathElement.prototype.setPathData)*/ {
+// commented out due to: https://github.com/jarek-foksa/path-data-polyfill/commit/fd75208405ce9121fbde3a09b0b29b93129e9a6e
   (function() {
     var commandsMap = {
       "Z":"Z", "M":"M", "L":"L", "C":"C", "Q":"Q", "A":"A", "H":"H", "V":"V", "S":"S", "T":"T",
